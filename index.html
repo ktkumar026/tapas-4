@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gaming Quiz — 10 Question Challenge</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#0f1724; --accent:#00d4ff; --accent-2:#ff4dd2; --glass: rgba(255,255,255,0.04);
+      --success:#4aed8a; --danger:#ff6b6b; --muted: #94a3b8; --gold:#ffd166;
+      --radius:16px; --pad:18px; --transition:300ms cubic-bezier(.22,.9,.35,1);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 600px at 10% 10%, rgba(0,212,255,0.06), transparent),
+      radial-gradient(900px 400px at 90% 90%, rgba(255,77,210,0.04), transparent), var(--bg); color:#e6eef8}
+
+    .wrap{max-width:920px;margin:40px auto;padding:24px;display:grid;grid-template-columns:1fr 320px;gap:20px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:var(--radius);box-shadow:0 8px 30px rgba(2,6,23,0.75);padding:var(--pad);backdrop-filter: blur(6px)}
+
+    header{display:flex;align-items:center;gap:12px}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#071226;font-size:20px}
+    h1{margin:0;font-size:20px}
+    p.lead{color:var(--muted);margin:6px 0 0;font-size:13px}
+
+    .question-area{margin-top:18px}
+    .progress{height:12px;background:var(--glass);border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));width:0%;transition:width var(--transition)}
+
+    .question{margin-top:16px;font-size:18px;min-height:66px}
+    .choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+    .choice{background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);padding:12px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,0.03);transition:all 180ms ease;user-select:none}
+    .choice:hover{transform:translateY(-4px)}
+    .choice.correct{outline:3px solid rgba(78, 237, 138, 0.12);box-shadow:0 6px 30px rgba(78,237,138,0.06)}
+    .choice.wrong{outline:3px solid rgba(255,107,107,0.08);opacity:0.86}
+
+    .meta{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:12px}
+    .timer{display:flex;align-items:center;gap:8px}
+    .timer .circle{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);font-weight:700}
+
+    .score-card{position:sticky;top:30px}
+    .stat{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);margin-bottom:12px}
+    .small{font-size:12px;color:var(--muted)}
+
+    .btn{display:inline-flex;gap:8px;align-items:center;padding:10px 14px;border-radius:12px;border:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#071226;font-weight:700;cursor:pointer;transition:transform 140ms}
+    .btn:active{transform:translateY(2px)}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);font-weight:600}
+
+    footer.small{margin-top:14px;color:var(--muted);font-size:13px}
+
+    /* confetti container */
+    #confettiCanvas{position:fixed;left:0;top:0;pointer-events:none;z-index:9999}
+
+    /* responsive */
+    @media (max-width:900px){.wrap{grid-template-columns:1fr;padding:12px}.score-card{position:relative;top:auto}}
+  </style>
+</head>
+<body>
+  <canvas id="confettiCanvas"></canvas>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <div class="logo">GQ</div>
+        <div>
+          <h1>Gaming Quiz — 10 Question Challenge</h1>
+          <p class="lead">Fast. Fun. Competitive. Answer 10 questions — beat the clock & top the leaderboard.</p>
+        </div>
+      </header>
+
+      <div class="question-area">
+        <div class="progress" aria-hidden><i id="prog"></i></div>
+        <div class="question" id="question">Question will appear here</div>
+
+        <div class="choices" id="choices"></div>
+
+        <div class="meta">
+          <div class="timer">
+            <div>
+              <div class="small">Time left</div>
+              <div class="circle" id="timer">15</div>
+            </div>
+            <div style="min-width:160px">
+              <div class="small">Streak</div>
+              <div id="streak">0 🔥</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn ghost" id="skip">Skip (-1)</button>
+            <button class="btn" id="next" style="display:none">Next ➜</button>
+          </div>
+        </div>
+      </div>
+
+      <footer class="small">Tip: Click an answer or press 1–4. Each correct answer gives points and time bonus.</footer>
+    </div>
+
+    <aside class="score-card">
+      <div class="card">
+        <div class="stat"><div>
+          <div class="small">Score</div>
+          <div id="score" style="font-size:28px">0</div>
+        </div><div style="text-align:right">
+          <div class="small">Round</div>
+          <div id="round">0 / 10</div>
+        </div></div>
+
+        <div class="stat"><div>
+          <div class="small">Best Streak</div>
+          <div id="bestStreak">0</div>
+        </div></div>
+
+        <div class="stat"><div>
+          <div class="small">Accuracy</div>
+          <div id="accuracy">0%</div>
+        </div></div>
+
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn" id="restart">Restart</button>
+          <button class="btn ghost" id="share">Share</button>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--muted)">You can edit the questions array inside the JS to change questions, options, points and time bonuses.</div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // === CONFIG ===
+    const TOTAL_QUESTIONS = 10;
+    const TIME_PER_QUESTION = 15; // seconds
+
+    // Questions array (10 sample gaming-related questions). Modify as you like.
+    const QUESTIONS = [
+      {q: "Which company developed the game 'The Witcher 3: Wild Hunt'?", opts:["CD Projekt Red","BioWare","Ubisoft","Rockstar Games"], a:0, points:100, bonus:5},
+      {q: "In shooter games, what does 'ADS' commonly stand for?", opts:["Aim Down Sights","Auto Damage System","Advanced Damage Shield","Aim Direct Shot"], a:0, points:80, bonus:4},
+      {q: "Which of these is NOT a real gaming console?", opts:["DreamSphere","PlayStation","Xbox","Nintendo Switch"], a:0, points:70, bonus:3},
+      {q: "In MOBAs, 'ganking' typically means:", opts:["Ambushing an enemy player","Stealing minions","Buying items","Taking objectives solo"], a:0, points:90, bonus:6},
+      {q: "Which game popularized the battle royale genre in 2017?", opts:["PlayerUnknown's Battlegrounds","Overwatch","League of Legends","Dota 2"], a:0, points:110, bonus:7},
+      {q: "Which in-game currency appears in the series 'Final Fantasy' most often?", opts:["Gil","Coin","Credits","Gold"], a:0, points:60, bonus:3},
+      {q: "Speedrunning aims to:", opts:["Complete a game as fast as possible","Collect all items","Play without taking damage","Achieve highest score"], a:0, points:85, bonus:5},
+      {q: "Which term describes a game's visual style that imitates classic 8-bit/16-bit visuals?", opts:["Pixel art","Photorealism","Cel-shading","Voxel art"], a:0, points:75, bonus:4},
+      {q: "In esports, what does 'BO3' mean?", opts:["Best of 3","Battle of 3","Bracket of 3","Band of 3"], a:0, points:95, bonus:6},
+      {q: "Which popular franchise features the characters Mario and Luigi?", opts:["Super Mario","Sonic","Halo","God of War"], a:0, points:50, bonus:2}
+    ];
+
+    // === STATE ===
+    let pool = [];
+    let currentIndex = 0;
+    let score = 0;
+    let streak = 0;
+    let bestStreak = 0;
+    let correctCount = 0;
+    let timer = null;
+    let timeLeft = TIME_PER_QUESTION;
+    let skipped = 0;
+
+    // DOM
+    const qEl = document.getElementById('question');
+    const choicesEl = document.getElementById('choices');
+    const prog = document.getElementById('prog');
+    const timerEl = document.getElementById('timer');
+    const scoreEl = document.getElementById('score');
+    const roundEl = document.getElementById('round');
+    const streakEl = document.getElementById('streak');
+    const bestStreakEl = document.getElementById('bestStreak');
+    const accuracyEl = document.getElementById('accuracy');
+    const nextBtn = document.getElementById('next');
+    const skipBtn = document.getElementById('skip');
+    const restartBtn = document.getElementById('restart');
+    const shareBtn = document.getElementById('share');
+
+    // utility: shuffle
+    function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+    // initialize
+    function start(){
+      pool = shuffle(QUESTIONS.slice()).slice(0,TOTAL_QUESTIONS);
+      currentIndex = 0; score = 0; streak=0; bestStreak=0; correctCount=0; skipped=0;
+      updateHUD(); showQuestion();
+    }
+
+    function showQuestion(){
+      clearInterval(timer);
+      const item = pool[currentIndex];
+      qEl.textContent = item.q;
+      choicesEl.innerHTML = '';
+      const opts = item.opts.map((t,i)=>({t,i}));
+      // shuffle options so answers aren't predictable
+      shuffle(opts);
+      opts.forEach((o, idx)=>{
+        const btn = document.createElement('div');
+        btn.className='choice';
+        btn.setAttribute('data-index', o.i);
+        btn.innerHTML = `<strong>${String.fromCharCode(65+idx)}.</strong> <span style='margin-left:8px'>${o.t}</span>`;
+        btn.addEventListener('click', ()=>selectAnswer(btn, item, o.i));
+        choicesEl.appendChild(btn);
+      });
+
+      // reset timer
+      timeLeft = TIME_PER_QUESTION;
+      timerEl.textContent = timeLeft;
+      timer = setInterval(()=>{
+        timeLeft--; timerEl.textContent = timeLeft;
+        if(timeLeft<=0){clearInterval(timer); handleTimeout();}
+      },1000);
+
+      // progress
+      prog.style.width = `${Math.round((currentIndex/TOTAL_QUESTIONS)*100)}%`;
+
+      nextBtn.style.display='none';
+    }
+
+    function selectAnswer(el, item, chosenIndex){
+      clearInterval(timer);
+      const correctIdx = item.a;
+      const allChoices = Array.from(document.querySelectorAll('.choice'));
+      // highlight selected
+      allChoices.forEach(c=>c.style.pointerEvents='none');
+
+      if(chosenIndex === correctIdx){
+        // correct
+        el.classList.add('correct');
+        streak++; correctCount++;
+        bestStreak = Math.max(bestStreak, streak);
+        // scoring: base points + time bonus + streak multiplier
+        const points = Math.round(item.points + item.bonus * timeLeft + (streak-1)*5);
+        score += points;
+        scoreEl.textContent = score;
+        // time bonus: add small time to next question
+        timeLeft = Math.min(TIME_PER_QUESTION, timeLeft + item.bonus);
+        playTone(880,0.08);
+      } else {
+        // wrong
+        el.classList.add('wrong');
+        streak = 0;
+        playTone(220,0.18);
+        // reveal correct
+        const correctBtn = allChoices.find(c=>Number(c.dataset.index)===correctIdx);
+        if(correctBtn) correctBtn.classList.add('correct');
+      }
+
+      // show next after short delay
+      setTimeout(()=>{
+        currentIndex++;
+        updateHUD();
+        if(currentIndex>=TOTAL_QUESTIONS){ endRound(); } else { showQuestion(); }
+      },900);
+    }
+
+    function handleTimeout(){
+      // mark as wrong and move on
+      const allChoices = Array.from(document.querySelectorAll('.choice'));
+      allChoices.forEach(c=>c.style.pointerEvents='none');
+      streak=0;
+      playTone(220,0.25);
+      // show correct choice
+      const item = pool[currentIndex];
+      const correctBtn = allChoices.find(c=>Number(c.dataset.index)===item.a);
+      if(correctBtn) correctBtn.classList.add('correct');
+
+      setTimeout(()=>{ currentIndex++; updateHUD(); if(currentIndex>=TOTAL_QUESTIONS) endRound(); else showQuestion(); },900);
+    }
+
+    function updateHUD(){
+      roundEl.textContent = `${Math.min(currentIndex+1,TOTAL_QUESTIONS)} / ${TOTAL_QUESTIONS}`;
+      streakEl.textContent = `${streak} 🔥`;
+      bestStreakEl.textContent = bestStreak;
+      const acc = correctCount===0?0:Math.round((correctCount/(currentIndex))*100);
+      accuracyEl.textContent = isFinite(acc)? `${acc}%` : '0%';
+      prog.style.width = `${Math.round((currentIndex/TOTAL_QUESTIONS)*100)}%`;
+    }
+
+    function endRound(){
+      clearInterval(timer);
+      prog.style.width = `100%`;
+      // show results modal-style (simple)
+      const acc = Math.round((correctCount/TOTAL_QUESTIONS)*100);
+      const msg = `You scored ${score} points\nAccuracy: ${acc}%\nBest streak: ${bestStreak}`;
+      // small confetti celebration for good scores
+      if(score>500) fireConfetti();
+      setTimeout(()=>{
+        alert(msg);
+      },200);
+    }
+
+    // keyboard shortcuts 1-4, s to skip, r to restart
+    window.addEventListener('keydown',(e)=>{
+      if(document.activeElement && (document.activeElement.tagName==='INPUT' || document.activeElement.tagName==='TEXTAREA')) return;
+      if(e.key>='1' && e.key<='4'){
+        const idx = Number(e.key)-1;
+        const btn = choicesEl.children[idx]; if(btn) btn.click();
+      }
+      if(e.key.toLowerCase()==='s') skip();
+      if(e.key.toLowerCase()==='r') start();
+    });
+
+    // skip functionality
+    function skip(){ if(skipped>=2) return alert('Max 2 skips'); skipped++; currentIndex++; updateHUD(); if(currentIndex>=TOTAL_QUESTIONS) endRound(); else showQuestion(); }
+    skipBtn.addEventListener('click', ()=>{ if(confirm('Use a skip? You have 2 skips total.')) skip(); });
+
+    restartBtn.addEventListener('click', ()=>{ if(confirm('Restart quiz?')) start(); });
+
+    shareBtn.addEventListener('click', ()=>{
+      const text = `I scored ${score} in Gaming Quiz — ${correctCount}/${TOTAL_QUESTIONS} correct! Try it yourself.`;
+      if(navigator.share){ navigator.share({title:'Gaming Quiz Score', text}); } else { prompt('Copy your score to share:', text); }
+    });
+
+    // tiny tone generator
+    function playTone(freq, duration){ try{ const ctx = new (window.AudioContext||window.webkitAudioContext)(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type='sine'; o.frequency.value=freq; g.gain.value=0.05; o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+duration); setTimeout(()=>{o.stop(); ctx.close();}, duration*1000+50);}catch(e){}
+    }
+
+    // CONFETTI (basic)
+    function fireConfetti(){
+      const c = document.getElementById('confettiCanvas'); const w=window.innerWidth; const h=window.innerHeight; c.width=w; c.height=h; const ctx=c.getContext('2d'); const pieces=[]; for(let i=0;i<120;i++){pieces.push({x:Math.random()*w,y:Math.random()*-h,vy:2+Math.random()*6,ax:Math.random()*0.6-0.3,size:6+Math.random()*10,rot:Math.random()*360,vr:Math.random()*10,color: ['#00d4ff','#ff4dd2','#ffd166','#4aed8a'][Math.floor(Math.random()*4)]})}
+      let raf;
+      function draw(){ctx.clearRect(0,0,w,h); for(let p of pieces){p.x+=p.ax; p.y+=p.vy; p.rot+=p.vr; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot*Math.PI/180); ctx.fillStyle=p.color; ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size); ctx.restore();}
+        pieces.forEach((p,i)=>{ if(p.y>h+50) pieces.splice(i,1); }); if(pieces.length>0) raf=requestAnimationFrame(draw); else cancelAnimationFrame(raf);
+      }
+      draw(); setTimeout(()=>{c.width=1;c.height=1;},3500);
+    }
+
+    // start on load
+    start();
+  </script>
+</body>
+</html>
